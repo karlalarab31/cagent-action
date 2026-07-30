@@ -42,11 +42,6 @@ jobs:
 
       - name: Run actionlint
         uses: eifinger/actionlint-action@v1
-        with:
-          fail-on-error: true
-          # Disable shellcheck - it reports info/style warnings as errors
-          # We care about YAML structure and action syntax, not shell style
-          shellcheck: false
 
   test:
     name: Unit Tests
