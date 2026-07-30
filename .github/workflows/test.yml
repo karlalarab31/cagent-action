@@ -41,7 +41,7 @@ jobs:
         run: pnpm biome ci .
 
       - name: Run actionlint
-        uses: rhysd/actionlint-action@v1
+        uses: eifinger/actionlint-action@v1
         with:
           fail-on-error: true
           # Disable shellcheck - it reports info/style warnings as errors
