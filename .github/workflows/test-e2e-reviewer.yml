@@ -59,9 +59,9 @@ jobs:
           HEAD_REPO="${{ github.event.pull_request.head.repo.full_name || '' }}"
           if [[ "${{ github.event_name }}" == "pull_request" && "$HEAD_REPO" != "${{ github.repository }}" && -n "$HEAD_REPO" ]]; then
             echo "⏭️ Skipping - fork PR (secrets not available)"
-            echo "is_fork=true" >> $GITHUB_OUTPUT
+            echo "is_fork=true" >> "$GITHUB_OUTPUT"
           else
-            echo "is_fork=false" >> $GITHUB_OUTPUT
+            echo "is_fork=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Checkout code
@@ -163,9 +163,9 @@ jobs:
           HEAD_REPO="${{ github.event.pull_request.head.repo.full_name || '' }}"
           if [[ "${{ github.event_name }}" == "pull_request" && "$HEAD_REPO" != "${{ github.repository }}" && -n "$HEAD_REPO" ]]; then
             echo "⏭️ Skipping - fork PR (secrets not available)"
-            echo "is_fork=true" >> $GITHUB_OUTPUT
+            echo "is_fork=true" >> "$GITHUB_OUTPUT"
           else
-            echo "is_fork=false" >> $GITHUB_OUTPUT
+            echo "is_fork=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Checkout code
@@ -211,7 +211,7 @@ jobs:
               '{"body": "manual e2e test anchor comment — safe to delete", "commit_id": $sha, "path": $path, "side": "RIGHT", "position": 1}') \
             --jq '.id')
           echo "Created anchor comment ID: $COMMENT_ID"
-          echo "test_comment_id=$COMMENT_ID" >> $GITHUB_OUTPUT
+          echo "test_comment_id=$COMMENT_ID" >> "$GITHUB_OUTPUT"
 
       - name: Write synthetic pull_request_review_comment event
         if: steps.fork-check.outputs.is_fork != 'true'
