@@ -248,7 +248,7 @@ jobs:
         env:
           GH_TOKEN: ${{ env.GITHUB_APP_TOKEN || github.token }}
         run: |
-          COMMENT_ID=$(gh api repos/docker/cagent-action/issues/$TEST_PR_NUMBER/comments \
+          COMMENT_ID=$(gh api "repos/docker/cagent-action/issues/$TEST_PR_NUMBER/comments" \
             --method POST \
             --raw-field body="@docker-agent this is an automated e2e test — please reply with a brief acknowledgement." \
             --jq .id)
@@ -327,7 +327,7 @@ jobs:
         env:
           GH_TOKEN: ${{ env.GITHUB_APP_TOKEN || github.token }}
         run: |
-          FOUND=$(gh api repos/docker/cagent-action/issues/$TEST_PR_NUMBER/comments \
+          FOUND=$(gh api "repos/docker/cagent-action/issues/$TEST_PR_NUMBER/comments" \
             --jq '[.[] | select(.body | contains("<!-- cagent-review-reply -->")) | select(.created_at > (now - 300 | todate))] | length')
           if [ "$FOUND" -eq 0 ]; then
             echo "❌ No reply comment found within the last 5 minutes"
@@ -343,7 +343,7 @@ jobs:
           ANCHOR_ID: ${{ steps.create-anchor.outputs.test_comment_id }}
         run: |
           # Delete any test reply comments posted in the last 5 minutes
-          gh api repos/docker/cagent-action/issues/$TEST_PR_NUMBER/comments \
+          gh api "repos/docker/cagent-action/issues/$TEST_PR_NUMBER/comments" \
             --jq '.[] | select(.body | contains("<!-- cagent-review-reply -->")) | select(.created_at > (now - 300 | todate)) | .id' | \
           while read -r comment_id; do
             gh api "repos/docker/cagent-action/issues/comments/$comment_id" -X DELETE || true
@@ -409,20 +409,22 @@ jobs:
           GH_TOKEN: ${{ env.GITHUB_APP_TOKEN || github.token }}
         run: |
           # Get the PR head SHA
-          HEAD_SHA=$(gh api repos/docker/cagent-action/pulls/$TEST_PR_NUMBER --jq '.head.sha')
+          HEAD_SHA=$(gh api "repos/docker/cagent-action/pulls/$TEST_PR_NUMBER" --jq '.head.sha')
           echo "PR head SHA: $HEAD_SHA"
 
           # Get first file in the diff to use as a safe anchor
-          DIFF_FILE=$(gh api repos/docker/cagent-action/pulls/$TEST_PR_NUMBER/files --jq '.[0].filename')
+          DIFF_FILE=$(gh api "repos/docker/cagent-action/pulls/$TEST_PR_NUMBER/files" --jq '.[0].filename')
           echo "Using diff file: $DIFF_FILE"
 
           # Post a test inline comment to get a real comment ID
-          COMMENT_ID=$(gh api repos/docker/cagent-action/pulls/$TEST_PR_NUMBER/comments \
+          PAYLOAD=$(jq -n \
+            --arg sha "$HEAD_SHA" \
+            --arg path "$DIFF_FILE" \
+            '{"body": "e2e test anchor comment — safe to delete", "commit_id": $sha, "path": $path, "side": "RIGHT", "position": 1}')
+
+          COMMENT_ID=$(gh api "repos/docker/cagent-action/pulls/$TEST_PR_NUMBER/comments" \
             -X POST \
-            --input - <<< $(jq -n \
-              --arg sha "$HEAD_SHA" \
-              --arg path "$DIFF_FILE" \
-              '{"body": "e2e test anchor comment — safe to delete", "commit_id": $sha, "path": $path, "side": "RIGHT", "position": 1}') \
+            --input - <<< "$PAYLOAD" \
             --jq '.id')
           echo "Created test anchor comment ID: $COMMENT_ID"
           echo "test_comment_id=$COMMENT_ID" >> "$GITHUB_OUTPUT"
@@ -516,7 +518,7 @@ jobs:
           GH_TOKEN: ${{ env.GITHUB_APP_TOKEN || github.token }}
           ANCHOR_ID: ${{ steps.create-anchor.outputs.test_comment_id }}
         run: |
-          FOUND=$(gh api repos/docker/cagent-action/pulls/$TEST_PR_NUMBER/comments \
+          FOUND=$(gh api "repos/docker/cagent-action/pulls/$TEST_PR_NUMBER/comments" \
             | jq --argjson id "$ANCHOR_ID" \
             '[.[] | select(.in_reply_to_id == $id and (.body | contains("<!-- cagent-review-reply -->"))) ] | length')
           if [ "$FOUND" -eq 0 ]; then
@@ -537,12 +539,14 @@ jobs:
             exit 0
           fi
           # Delete any replies in the thread first
-          gh api repos/docker/cagent-action/pulls/$TEST_PR_NUMBER/comments \
-            | jq --argjson id "$ANCHOR_ID" \
-            '[.[] | select(.in_reply_to_id == $id)] | .[].id' | \
-          while read -r reply_id; do
-            gh api "repos/docker/cagent-action/pulls/comments/$reply_id" -X DELETE || true
-            echo "Deleted reply comment $reply_id"
+          REPLIES=$(gh api "repos/docker/cagent-action/pulls/$TEST_PR_NUMBER/comments" \
+            | jq --argjson id "$ANCHOR_ID" '[.[] | select(.in_reply_to_id == $id)] | .[].id')
+
+          echo "$REPLIES" | jq -r '.[]?' | while read -r reply_id; do
+            if [ -n "$reply_id" ]; then
+              gh api "repos/docker/cagent-action/pulls/comments/$reply_id" -X DELETE || true
+              echo "Deleted reply comment $reply_id"
+            fi
           done
           # Delete the anchor comment itself
           gh api "repos/docker/cagent-action/pulls/comments/$ANCHOR_ID" -X DELETE || true
