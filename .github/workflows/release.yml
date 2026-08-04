@@ -3,6 +3,10 @@
 
 name: Release
 
+- name: Simular fallo de release
+  run: |
+    echo "Simulando un error crítico en el proceso de build/release..."
+    exit 1
 on:
   workflow_dispatch:
     inputs:
