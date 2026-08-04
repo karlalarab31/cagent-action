@@ -59,9 +59,9 @@ jobs:
           HEAD_REPO="${{ github.event.pull_request.head.repo.full_name || '' }}"
           if [[ "${{ github.event_name }}" == "pull_request" && "$HEAD_REPO" != "${{ github.repository }}" && -n "$HEAD_REPO" ]]; then
             echo "⏭️ Skipping - fork PR (secrets not available)"
-            echo "is_fork=true" >> $GITHUB_OUTPUT
+            echo "is_fork=true" >> "$GITHUB_OUTPUT"
           else
-            echo "is_fork=false" >> $GITHUB_OUTPUT
+            echo "is_fork=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Checkout code
@@ -163,9 +163,9 @@ jobs:
           HEAD_REPO="${{ github.event.pull_request.head.repo.full_name || '' }}"
           if [[ "${{ github.event_name }}" == "pull_request" && "$HEAD_REPO" != "${{ github.repository }}" && -n "$HEAD_REPO" ]]; then
             echo "⏭️ Skipping - fork PR (secrets not available)"
-            echo "is_fork=true" >> $GITHUB_OUTPUT
+            echo "is_fork=true" >> "$GITHUB_OUTPUT"
           else
-            echo "is_fork=false" >> $GITHUB_OUTPUT
+            echo "is_fork=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Checkout code
@@ -205,13 +205,13 @@ jobs:
           echo "Using diff file: $DIFF_FILE"
           COMMENT_ID=$(gh api "repos/docker/cagent-action/pulls/$PR_NUMBER/comments" \
             -X POST \
-            --input - <<< $(jq -n \
+            --input - <<< "$(jq -n \
               --arg sha "$HEAD_SHA" \
               --arg path "$DIFF_FILE" \
-              '{"body": "manual e2e test anchor comment — safe to delete", "commit_id": $sha, "path": $path, "side": "RIGHT", "position": 1}') \
+              '{"body": "manual e2e test anchor comment — safe to delete", "commit_id": $sha, "path": $path, "side": "RIGHT", "position": 1}')" \
             --jq '.id')
           echo "Created anchor comment ID: $COMMENT_ID"
-          echo "test_comment_id=$COMMENT_ID" >> $GITHUB_OUTPUT
+          echo "test_comment_id=$COMMENT_ID" >> "$GITHUB_OUTPUT"
 
       - name: Write synthetic pull_request_review_comment event
         if: steps.fork-check.outputs.is_fork != 'true'
@@ -286,7 +286,9 @@ jobs:
           gh api "repos/docker/cagent-action/pulls/${{ inputs.pr_number }}/comments" \
             | jq --argjson id "$ANCHOR_ID" '[.[] | select(.in_reply_to_id == $id)] | .[].id' \
             | while read -r reply_id; do
-                gh api "repos/docker/cagent-action/pulls/comments/$reply_id" -X DELETE || true
+                if [ -n "$reply_id" ]; then
+                  gh api "repos/docker/cagent-action/pulls/comments/$reply_id" -X DELETE || true
+                fi
               done
           # Delete anchor
           gh api "repos/docker/cagent-action/pulls/comments/$ANCHOR_ID" -X DELETE || true

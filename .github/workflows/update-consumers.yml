@@ -42,13 +42,13 @@ jobs:
           fi
           OBJ_TYPE=$(gh api "repos/docker/cagent-action/git/ref/tags/$VERSION" --jq .object.type)
           if [ "$OBJ_TYPE" = "tag" ]; then
-            SHA=$(gh api "repos/docker/cagent-action/git/ref/tags/$VERSION" --jq '.object.url' \
-              | xargs gh api --jq .object.sha)
+            TAG_URL=$(gh api "repos/docker/cagent-action/git/ref/tags/$VERSION" --jq '.object.url')
+            SHA=$(gh api "$TAG_URL" --jq .object.sha)
           else
             SHA=$(gh api "repos/docker/cagent-action/git/ref/tags/$VERSION" --jq .object.sha)
           fi
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "sha=$SHA" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
           echo "Resolved: $VERSION @ $SHA"
 
       - name: Checkout for composite actions
@@ -127,10 +127,12 @@ jobs:
             # Clone the repo into a temp directory
             # Set up cleanup trap for this iteration
             WORK_DIR=$(mktemp -d)
-            trap 'cd /; rm -rf "$WORK_DIR"' EXIT
+            trap 'cd /; rm -rf "${WORK_DIR:?}"' EXIT
             if ! gh repo clone "$REPO" "$WORK_DIR" -- --depth=1 2>/dev/null; then
               echo "::warning::Failed to clone $REPO — skipping (token may lack access)"
+              cd /
               rm -rf "$WORK_DIR"
+              trap - EXIT
               continue
             fi
 
@@ -141,6 +143,7 @@ jobs:
               echo "::warning::$FILE_PATH not found in $REPO — skipping"
               cd /
               rm -rf "$WORK_DIR"
+              trap - EXIT
               continue
             fi
 
@@ -148,6 +151,7 @@ jobs:
               echo "Pattern not found in $FILE_PATH — may already be up to date, skipping"
               cd /
               rm -rf "$WORK_DIR"
+              trap - EXIT
               continue
             fi
 
@@ -160,6 +164,7 @@ jobs:
               echo "No changes after sed — already up to date"
               cd /
               rm -rf "$WORK_DIR"
+              trap - EXIT
               continue
             fi
 
@@ -176,6 +181,7 @@ jobs:
               echo "::warning::Failed to create signed commit in $REPO (may lack write access)"
               cd /
               rm -rf "$WORK_DIR"
+              trap - EXIT
               continue
             }
 

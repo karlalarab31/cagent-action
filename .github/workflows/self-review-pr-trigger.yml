@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 name: Self PR Review - Trigger
+
 on:
   pull_request:
     types: [ ready_for_review, opened, review_requested ]
@@ -12,25 +13,30 @@ permissions: {}
 
 jobs:
   save-context:
-    if: >
-      github.event.comment.user.login != 'docker-agent' &&
-      github.event.comment.user.login != 'docker-agent[bot]' &&
-      github.event.comment.user.type != 'Bot' &&
-      !contains(github.event.comment.body, '<!-- cagent-review -->') &&
-      !contains(github.event.comment.body, '<!-- cagent-review-reply -->')
+    if: >-
+      github.event_name == 'pull_request' ||
+      (
+        github.event.comment.user.login != 'docker-agent' &&
+        github.event.comment.user.login != 'docker-agent[bot]' &&
+        github.event.comment.user.type != 'Bot' &&
+        !contains(github.event.comment.body, '<!-- cagent-review -->') &&
+        !contains(github.event.comment.body, '<!-- cagent-review-reply -->')
+      )
     runs-on: ubuntu-latest
     steps:
       - name: Save event context
         env:
-          PR_NUMBER: ${{ github.event.pull_request.number }}
+          EVENT_NAME: ${{ github.event_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
           PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           COMMENT_JSON: ${{ toJSON(github.event.comment) }}
         run: |
           mkdir -p context
-          printf '%s' "${{ github.event_name }}" > context/event_name.txt
+          printf '%s' "$EVENT_NAME" > context/event_name.txt
           printf '%s' "$PR_NUMBER" > context/pr_number.txt
           printf '%s' "$PR_HEAD_SHA" > context/pr_head_sha.txt
-          if [ "${{ github.event_name }}" = "pull_request_review_comment" ]; then
+          
+          if [ "$EVENT_NAME" = "pull_request_review_comment" ]; then
             printf '%s' "$COMMENT_JSON" > context/comment.json
           fi
 

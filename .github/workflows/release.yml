@@ -117,16 +117,18 @@ jobs:
             NEW_VERSION="${NEW_VERSION}-beta.${BETA_NUM}"
           fi
 
-          echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
-          echo "previous=${LATEST_TAG}" >> $GITHUB_OUTPUT
-          echo "pre_release=${PRE_RELEASE}" >> $GITHUB_OUTPUT
+          {
+            echo "version=$NEW_VERSION"
+            echo "previous=${LATEST_TAG}"
+            echo "pre_release=${PRE_RELEASE}"
+          } >> "$GITHUB_OUTPUT"
           echo "New version: $NEW_VERSION (previous: ${LATEST_TAG:-none})"
 
       # CI cannot push commits to main (branch protection). Instead, we create
       # a 3-commit chain reachable only via tags.
       #
-      # PREP_SHA  – dist/ only (inherits main's YAML with old self-refs)
-      # TEMP_SHA  – YAML files pinned to PREP_SHA
+      # PREP_SHA   – dist/ only (inherits main's YAML with old self-refs)
+      # TEMP_SHA   – YAML files pinned to PREP_SHA
       # RELEASE_SHA – YAML files re-pinned to TEMP_SHA (the tagged commit)
       #
       # When a consumer uses RELEASE_SHA's reusable workflow:
@@ -197,7 +199,7 @@ jobs:
           while IFS= read -r file; do
             sed -i "$PIN_PATTERN_TO_PREP" "$file"
             PINNED_FILES+=("$file")
-            echo "  Pinned: $file"
+            echo "   Pinned: $file"
           done < <(grep -rl "$OLD_PIN_PATTERN" --include='*.yml' --include='*.yaml' \
             --exclude-dir=.git \
             review-pr/ .github/workflows/ .github/actions/)
@@ -238,7 +240,7 @@ jobs:
           PIN_PATTERN_TO_TEMP='s|^\([^#]*uses: *docker/cagent-action\)\([^@]*\)@'"${PREP_SHA}"'.*|\1\2@'"${TEMP_SHA}"' # '"${VERSION}"'|g'
           for file in "${PINNED_FILES[@]}"; do
             sed -i "$PIN_PATTERN_TO_TEMP" "$file"
-            echo "  Re-pinned: $file"
+            echo "   Re-pinned: $file"
           done
 
           # Verify no PREP_SHA refs remain after Pass 3
@@ -260,7 +262,7 @@ jobs:
               --message "release: ${VERSION}" \
               --add-stdin)
 
-          echo "sha=$RELEASE_SHA" >> $GITHUB_OUTPUT
+          echo "sha=$RELEASE_SHA" >> "$GITHUB_OUTPUT"
           echo "Release commit: $RELEASE_SHA"
 
           # ── Create tag via API (no git push needed) ──────────────────────────
@@ -418,7 +420,7 @@ jobs:
           while IFS= read -r file; do
             sed -i "$YAML_PIN_PATTERN" "$file"
             UPDATED_FILES+=("$file")
-            echo "  Updated (yaml): $file"
+            echo "   Updated (yaml): $file"
           done < <(grep -rl "$OLD_PATTERN" --include='*.yml' --include='*.yaml' \
             --exclude-dir=.git \
             review-pr/ .github/workflows/ .github/actions/)
@@ -509,9 +511,11 @@ jobs:
             echo "::warning::Failed to fetch release notes, using fallback"
             NOTES="Release ${VERSION} — see GitHub for details."
           fi
-          echo "notes<<EOF" >> $GITHUB_OUTPUT
-          echo "$NOTES" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          {
+            echo "notes<<EOF"
+            echo "$NOTES"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Generate Slack summary
         id: slack-summary

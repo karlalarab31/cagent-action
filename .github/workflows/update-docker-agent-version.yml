@@ -82,7 +82,7 @@ jobs:
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          CURRENT=$(cat DOCKER_AGENT_VERSION | tr -d '[:space:]')
+          CURRENT=$(tr -d '[:space:]' < DOCKER_AGENT_VERSION)
           echo "Current version: $CURRENT"
           echo "Target version:  $VERSION"
 

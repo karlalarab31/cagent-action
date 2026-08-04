@@ -1,0 +1,80 @@
+# Copyright The Docker Agent Action authors
+# SPDX-License-Identifier: Apache-2.0
+
+name: Rollback
+
+on:
+  workflow_dispatch:
+
+  workflow_run:
+    workflows: ["Release"]
+    types:
+      - completed
+
+permissions:
+  contents: read
+
+jobs:
+  rollback:
+    name: Restore previous stable release
+
+    # Execute only when the Release workflow finishes with a failure.
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'failure'
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Fetch tags
+        run: git fetch --force --tags
+
+      - name: Determine previous stable release
+        id: previous-release
+        shell: bash
+        run: |
+          set -e
+
+          PREVIOUS_TAG=$(git tag -l 'v*' --sort=-v:refname | sed -n '2p')
+
+          if [ -z "$PREVIOUS_TAG" ]; then
+            echo "::error::No previous stable release found."
+            exit 1
+          fi
+
+          echo "previous=$PREVIOUS_TAG" >> "$GITHUB_OUTPUT"
+
+          echo "Previous stable release: $PREVIOUS_TAG"
+
+      - name: Restore previous release
+        shell: bash
+        run: |
+          set -e
+
+          TAG="${{ steps.previous-release.outputs.previous }}"
+
+          echo "Checking out ${TAG}"
+
+          git checkout "$TAG"
+
+          echo "Repository restored to ${TAG}"
+
+      - name: Rollback summary
+        shell: bash
+        run: |
+          {
+            echo "## Rollback completed"
+            echo ""
+            echo "| Field | Value |"
+            echo "|------|-------|"
+            echo "| Restored version | ${{ steps.previous-release.outputs.previous }} |"
+            echo "| Triggered by | ${{ github.actor }} |"
+            echo "| Repository | ${{ github.repository }} |"
+            echo "| Event | ${{ github.event_name }} |"
+            echo "| Date | $(date -u) UTC |"
+          } >> "$GITHUB_STEP_SUMMARY"
