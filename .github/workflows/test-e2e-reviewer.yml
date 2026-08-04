@@ -205,10 +205,10 @@ jobs:
           echo "Using diff file: $DIFF_FILE"
           COMMENT_ID=$(gh api "repos/docker/cagent-action/pulls/$PR_NUMBER/comments" \
             -X POST \
-            --input - <<< $(jq -n \
+            --input - <<< "$(jq -n \
               --arg sha "$HEAD_SHA" \
               --arg path "$DIFF_FILE" \
-              '{"body": "manual e2e test anchor comment — safe to delete", "commit_id": $sha, "path": $path, "side": "RIGHT", "position": 1}') \
+              '{"body": "manual e2e test anchor comment — safe to delete", "commit_id": $sha, "path": $path, "side": "RIGHT", "position": 1}')" \
             --jq '.id')
           echo "Created anchor comment ID: $COMMENT_ID"
           echo "test_comment_id=$COMMENT_ID" >> "$GITHUB_OUTPUT"
@@ -286,7 +286,9 @@ jobs:
           gh api "repos/docker/cagent-action/pulls/${{ inputs.pr_number }}/comments" \
             | jq --argjson id "$ANCHOR_ID" '[.[] | select(.in_reply_to_id == $id)] | .[].id' \
             | while read -r reply_id; do
-                gh api "repos/docker/cagent-action/pulls/comments/$reply_id" -X DELETE || true
+                if [ -n "$reply_id" ]; then
+                  gh api "repos/docker/cagent-action/pulls/comments/$reply_id" -X DELETE || true
+                fi
               done
           # Delete anchor
           gh api "repos/docker/cagent-action/pulls/comments/$ANCHOR_ID" -X DELETE || true
