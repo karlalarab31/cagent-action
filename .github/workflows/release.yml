@@ -3,7 +3,7 @@
 
 name: Release
 
-- name: Simular fallo de release prueba 2
+- name: Simular fallo de release prueba 3
   run: |
     echo "Simulando un error crítico en el proceso de build/release..."
     exit 1
